@@ -8,6 +8,8 @@ import requests
 from bs4 import BeautifulSoup
 import urllib.request
 
+from progress.bar import Bar
+
 argv = sys.argv[1:]
 base_url = "https://nhentai.net/g/"
 
@@ -28,12 +30,17 @@ def convert_to_num_arr(arr: List[str]):
     ))
 
 
+def replace_reserved_chars_in_title(doujin_title: str):
+    return doujin_title.replace("/", "_")
+
+
 def get_doujin_metadata(doujin_num: int):
     url = f"{base_url}{doujin_num}"
     html = requests.get(url).text
     soup = BeautifulSoup(html, "html.parser")
 
     title = soup.select("h1.title")[0].getText()
+    title = replace_reserved_chars_in_title(title)
 
     tags = soup.select("div.tag-container span.tags")
     page_count = tags[-2].getText()
@@ -81,9 +88,11 @@ def download_image_from_src(src: str, folder: str):
 def download_doujin(title: str, image_srcs: List[str]):
     dest_folder = ensure_image_folder_exists(title)
 
-    for thumb_src in image_srcs:
-        gallery_src = get_gallery_src_from_thumbnail_src(thumb_src)
-        download_image_from_src(gallery_src, dest_folder)
+    with Bar("Downloading", max=len(image_srcs)) as progress_bar:
+        for thumb_src in image_srcs:
+            gallery_src = get_gallery_src_from_thumbnail_src(thumb_src)
+            download_image_from_src(gallery_src, dest_folder)
+            progress_bar.next()
 
 
 def main():
